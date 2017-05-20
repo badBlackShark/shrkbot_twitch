@@ -1,5 +1,5 @@
 # shrkbot
-A twitch bot for the channel twitch.tv/trueblackshark
+A bot for the twitch channel twitch.tv/trueblackshark, created using the [cinch](https://github.com/cinchrb/cinch) IRC bot framework.
 
 
 ### Setting up
