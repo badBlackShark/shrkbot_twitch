@@ -2,7 +2,8 @@ require 'cinch'
 require 'yaml'
 require 'yaml/store'
 
-$botowner = 'trueblackshark'
+$login = YAML.load_file(".login")
+$botowner = $login['botowner']
 
 require_relative 'modules/ChannelSystem'
 
@@ -11,20 +12,19 @@ $moderators = {} #Used for all the mod-only commands in the plugins. Automatical
 $channels.keys.each do |channel_name|
     $moderators[channel_name.to_s] ||= {}
 end
-$passwords = YAML.load_file(".passwords")
 
 require_relative 'modules/ModSystem'
 require_relative 'modules/QuoteSystem'
 require_relative 'modules/CommandSystem'
 require_relative 'modules/GiveawaySystem'
 
-#TODO: Put hardcoded commands in their own module, implement a word filter
+#TODO: Put hardcoded commands in their own module, implement a word filter, implement tournament system.
 
 bot = Cinch::Bot.new do
     configure do |c|
         c.server = "irc.chat.twitch.tv"
-        c.nick = "shrkbot"
-        c.password = $passwords['oauth']
+        c.nick = $login['botname']
+        c.password = $login['oauth']
         c.channels = $channels.keys
         c.plugins.plugins = [
             QuoteSystem,
