@@ -52,3 +52,5 @@ build-iPhoneSimulator/
 .login
 .channels
 *.store
+TournamentSystem.rb
+WordFilter.rb
