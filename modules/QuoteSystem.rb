@@ -23,41 +23,48 @@ class QuoteSystem
         end
     end
 
-    #Create the storage for the quotes, and create a seperate partition for each channel.
+
     @@quote_store = YAML::Store.new('quotes.store')
     QuoteSystem.createStores
-    #Used so no quote is randomly returned twice in a row.
+    # Used so no quote is randomly returned twice in a row.
     @@lastquote = 0
 
 
-    # Usage: !quote add <quote> or !quote del <id>
+    # Usage: !quote add <quote>
     #
-    # Used to add or remove quotes from the quote database.
-    # Only mods can add / delete quotes.
-    match /quote (\w+) (.+)/, method: :handleQuotes
-    def handleQuotes(m, action, arg)
+    # Adds a quote to the database.
+    # Only usable by mods.
+    match /quote add (.+)/, method: :addQuote
+    def addQuote m, action, arg
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
-        if action.eql?("add")
-            #Adds a quote to the database.
-            @@quote_store.transaction do
-                channel_quotes = @@quote_store[m.channel.to_s]
-                id = channel_quotes["next_id"].to_i
-                channel_quotes["quotes"][id] = arg
-                channel_quotes["next_id"]+=1
-                m.reply "Added quote ##{id}: #{arg}"
-            end
-        elsif action.eql?("del")
-            @@quote_store.transaction do
-                #Deletes a quote from the database.
-                quote = @@quote_store[m.channel.to_s]["quotes"].delete(arg.to_i)
-                if quote
-                    m.reply "Quote ##{arg} deleted."
-                else
-                    m.reply "Quote ##{arg} doesn't exist."
-                end
+        @@quote_store.transaction do
+            channel_quotes = @@quote_store[m.channel.to_s]
+            id = channel_quotes["next_id"].to_i
+            channel_quotes["quotes"][id] = arg
+            channel_quotes["next_id"]+=1
+            m.reply "Added quote ##{id}: #{arg}"
+        end
+    end
+
+
+    # Usage: !quote del(ete) <quote>
+    #
+    # Deletes a quote from the database.
+    # Only usable by mods.
+    match /quote (?:del|delete) (.+)/, method: :addQuote
+    def addQuote m, action, arg
+        return unless $moderators[m.channel.to_s].include?(m.user.nick)
+        @@quote_store.transaction do
+            quote = @@quote_store[m.channel.to_s]["quotes"].delete(arg.to_i)
+            if quote
+                m.reply "Quote ##{arg} deleted."
+            else
+                m.reply "Quote ##{arg} doesn't exist."
             end
         end
     end
+
+
 
 
     # Usage: !quote <id>
@@ -72,7 +79,7 @@ class QuoteSystem
             unless quote_id
                 loop do
                     quote_id = channel_quotes["quotes"].keys.sample
-                    # Prevents an infinite loop if there's only 1 quote in the database.
+                    # Prevents an infinite loop if there are not enough quotes in the database.
                     break if channel_quotes["quotes"].length<2
                     break unless quote_id.eql?(@@lastquote)
                 end
@@ -86,6 +93,8 @@ class QuoteSystem
             end
         end
     end
+
+
 
     # Usage: !quotes clear <channel>
     #

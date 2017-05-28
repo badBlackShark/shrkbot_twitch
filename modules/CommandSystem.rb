@@ -23,7 +23,6 @@ class CommandSystem
     end
 
 
-    #Create the storage for the definitions, and create a seperate partition for each channel.
     @@command_store = YAML::Store.new "commands.store"
     CommandSystem.createStores
 
