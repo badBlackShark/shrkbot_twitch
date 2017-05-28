@@ -45,6 +45,7 @@ class ChannelSystem
         QuoteSystem.createStores
         CommandSystem.createStores
         GiveawaySystem.createStores
+        TournamentSystem.createStores
     end
 
     # !leave <channel>

@@ -28,8 +28,7 @@ class CommandSystem
     CommandSystem.createStores
 
 
-    # Usage: !def add <command> <reply>
-    # Usage: !def del <command>
+    # Usage: !def(inition) add <command> <reply>
     #
     # 'Add' adds a definition to the database, which can then be called
     # with ?<command>, which will return <reply>.
@@ -38,58 +37,79 @@ class CommandSystem
     # from the database.
     #
     # Can only be called by moderators.
-    match /def (\w+) (\w+) ?(.+)?/, method: :handleDefinitions
-    def handleDefinitions m, action, defname, reply
+    match /(?:def|definition) add (\w+) ?(.+)?/,        method: :addDefinition
+    def addDefinition m, defname, reply
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
-        if action.eql?("add")
-            @@command_store.transaction do
-                channel_defs = @@command_store[m.channel.to_s]
-                channel_defs["definitions"][defname.downcase] = reply
-                m.reply "Added definition for \"#{defname}\": #{reply}"
-            end
-        elsif action.eql?("del")
-            @@command_store.transaction do
-                definition = @@command_store[m.channel.to_s]["definitions"].delete(defname.downcase)
-                if definition
-                    m.reply "Definition \"?#{defname}\" was deleted."
-                else
-                    m.reply "Definition \"?#{defname}\" doesn't exist."
-                end
-            end
+        @@command_store.transaction do
+            channel_defs = @@command_store[m.channel.to_s]
+            channel_defs["definitions"][defname.downcase] = reply
+            m.reply "Added definition for \"#{defname}\": #{reply}"
         end
     end
 
 
-    # Usage: !command add <command> <reply>
-    # Usage: !command del <command>
+    # Usage: !def(inition) del(ete) <command>
     #
-    # 'Add' adds a command to the database, which can then be called
-    # with !<command>, which will return <reply>.
+    # 'Add' adds a definition to the database, which can then be called
+    # with ?<command>, which will return <reply>.
     #
-    # 'Del' deletes the command which can we called with !<command>
+    # 'Del' deletes the definition which can we called with ?<command>
     # from the database.
     #
     # Can only be called by moderators.
-    match /command (\w+) (\w+) ?(.+)?/, method: :handleCommands
-    def handleCommands m, action, cmdname, reply
+    match /(?:def|definition) (?:del|delete) (\w+) ?(.+)?/,        method: :deleteDefinition
+    def deleteDefinition m, defname, reply
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
-        if action.eql?("add")
-            @@command_store.transaction do
-                channel_defs = @@command_store[m.channel.to_s]
-                channel_defs["commands"][cmdname.downcase] = reply
-                m.reply "Added command \"!#{cmdname}\": #{reply}"
-            end
-        elsif action.eql?("del")
-            @@command_store.transaction do
-                command = @@command_store[m.channel.to_s]["commands"].delete(cmdname.downcase)
-                if command
-                    m.reply "Command \"!#{cmdname}\" was deleted."
-                else
-                    m.reply "Command \"!#{cmdname}\" doesn't exist."
-                end
+        @@command_store.transaction do
+            definition = @@command_store[m.channel.to_s]["definitions"].delete(defname.downcase)
+            if definition
+                m.reply "Definition \"?#{defname}\" was deleted."
+            else
+                m.reply "Definition \"?#{defname}\" doesn't exist."
             end
         end
     end
+
+
+
+    # Usage: !command add <command> <reply>
+    # Usage: !cmd add <command> <reply>
+    #
+    # Adds a command to the database, which can then be called
+    # with !<command>, which will return <reply>.
+    #
+    # Can only be called by moderators.
+    match /(?:cmd|command) add (\w+) ?(.+)?/, method: :addCommand
+    def addCommand m, cmdname, reply
+        return unless $moderators[m.channel.to_s].include?(m.user.nick)
+        @@command_store.transaction do
+            channel_defs = @@command_store[m.channel.to_s]
+            channel_defs["commands"][cmdname.downcase] = reply
+            m.reply "Added command \"!#{cmdname}\": #{reply}"
+        end
+    end
+
+
+
+    # Usage: !command del(ete) <command>
+    # Usage: !cmd del(ete) <command>
+    #
+    # Deletes the command which can we called with !<command> from the database.
+    #
+    # Can only be called by moderators.
+    match /(?:cmd|command) (?:del|delete) (\w+) ?(.+)?/, method: :deleteCommand
+    def deleteCommand m, cmdname, reply
+        return unless $moderators[m.channel.to_s].include?(m.user.nick)
+        @@command_store.transaction do
+            command = @@command_store[m.channel.to_s]["commands"].delete(cmdname.downcase)
+            if command
+                m.reply "Command \"!#{cmdname}\" was deleted."
+            else
+                m.reply "Command \"!#{cmdname}\" doesn't exist."
+            end
+        end
+    end
+
 
 
     # Usage: ?<definition>

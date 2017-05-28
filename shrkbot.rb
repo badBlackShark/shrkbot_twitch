@@ -17,8 +17,9 @@ require_relative 'modules/ModSystem'
 require_relative 'modules/QuoteSystem'
 require_relative 'modules/CommandSystem'
 require_relative 'modules/GiveawaySystem'
+require_relative 'modules/TournamentSystem'
 
-#TODO: Put hardcoded commands in their own module, implement a word filter, implement tournament system.
+# TODO: Put hardcoded commands in their own module, implement a word filter, implement tournament system, make code more readable.
 
 bot = Cinch::Bot.new do
     configure do |c|
@@ -31,7 +32,8 @@ bot = Cinch::Bot.new do
             CommandSystem,
             GiveawaySystem,
             ChannelSystem,
-            ModSystem
+            ModSystem,
+            TournamentSystem
         ]
     end
 
@@ -66,6 +68,11 @@ bot = Cinch::Bot.new do
     on :message, "ping" do |m|
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
         m.reply "I'm busy."
+    end
+
+    on :message, /Warum so ist?/ do |m|
+        return unless m.user.nick.eql?("trueblackshark")
+        m.reply "Keiner weiß!"
     end
 end
 
