@@ -16,8 +16,8 @@ class QuoteSystem
             # Create separate storage for each channel
             $channels.keys.each do |channel_name|
                 @@quote_store[channel_name.to_s] ||= {
-                    "next_id" => 1,
-                    "quotes" => {}
+                    next_id: 1,
+                    quotes:  {}
                 }
             end
         end
@@ -39,9 +39,9 @@ class QuoteSystem
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
         @@quote_store.transaction do
             channel_quotes = @@quote_store[m.channel.to_s]
-            id = channel_quotes["next_id"].to_i
-            channel_quotes["quotes"][id] = arg
-            channel_quotes["next_id"]+=1
+            id = channel_quotes[:next_id].to_i
+            channel_quotes[:quotes][id] = arg
+            channel_quotes[:next_id]+=1
             m.reply "Added quote ##{id}: #{arg}"
         end
     end
@@ -55,7 +55,7 @@ class QuoteSystem
     def addQuote m, action, arg
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
         @@quote_store.transaction do
-            quote = @@quote_store[m.channel.to_s]["quotes"].delete(arg.to_i)
+            quote = @@quote_store[m.channel.to_s][:quotes].delete(arg.to_i)
             if quote
                 m.reply "Quote ##{arg} deleted."
             else
@@ -78,14 +78,14 @@ class QuoteSystem
             channel_quotes = @@quote_store[m.channel.to_s]
             unless quote_id
                 loop do
-                    quote_id = channel_quotes["quotes"].keys.sample
+                    quote_id = channel_quotes[:quotes].keys.sample
                     # Prevents an infinite loop if there are not enough quotes in the database.
-                    break if channel_quotes["quotes"].length<2
+                    break if channel_quotes[:quotes].length<2
                     break unless quote_id.eql?(@@lastquote)
                 end
                 @@lastquote = quote_id.to_i
             end
-            quote = channel_quotes["quotes"][quote_id.to_i]
+            quote = channel_quotes[:quotes][quote_id.to_i]
             if quote
                 m.reply "[##{quote_id}]: #{quote}"
             else

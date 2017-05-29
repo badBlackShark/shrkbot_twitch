@@ -57,14 +57,7 @@ class ChannelSystem
     def leaveChannel m, channelName
         return unless m.user.nick.eql?($botowner)||m.user.nick.eql?(m.channel.name.sub('#',''))
 
-        # Making sure the bot is actually connected to the channel.
-        unless $channels.include?("##{channelName}")
-            m.reply "I'm not connected to channel #{channelName}."
-            return
-        end
-
         if channelName
-            # Making sure only the botowner can make the bot leave channels other than the one the command was called in.
             return unless m.user.nick.eql?($botowner)
             m.reply "Leaving channel twitch.tv/#{channelName}"
             channelName.prepend('#')
@@ -72,13 +65,17 @@ class ChannelSystem
             channelName = m.channel
         end
 
-        # Deleting the channel out of the database.
+        # Making sure the bot is actually connected to the channel.
+        unless $channels.include?("#{channelName}")
+            m.reply "I'm not connected to channel #{channelName}."
+            return
+        end
+
         @@channel_store.transaction do
             @@channel_store.delete(channelName)
             $channels.delete(channelName)
         end
 
-        # Letting the people in the channel know the bot is leaving and actually leaving the channel.
         Channel(channelName).send("Goodbye o/")
         bot.irc.send ("PART #{channelName}")
 

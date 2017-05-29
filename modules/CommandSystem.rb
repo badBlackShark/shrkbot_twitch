@@ -15,8 +15,8 @@ class CommandSystem
             # Create separate storage for each channel
             $channels.keys.each do |channel_name|
                 @@command_store[channel_name.to_s] ||= {
-                    "definitions" => {},
-                    "commands"    => {}
+                    definitions: {},
+                    commands:    {}
                 }
             end
         end
@@ -41,7 +41,7 @@ class CommandSystem
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
         @@command_store.transaction do
             channel_defs = @@command_store[m.channel.to_s]
-            channel_defs["definitions"][defname.downcase] = reply
+            channel_defs[:definitions][defname.downcase] = reply
             m.reply "Added definition for \"#{defname}\": #{reply}"
         end
     end
@@ -60,7 +60,7 @@ class CommandSystem
     def deleteDefinition m, defname, reply
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
         @@command_store.transaction do
-            definition = @@command_store[m.channel.to_s]["definitions"].delete(defname.downcase)
+            definition = @@command_store[m.channel.to_s][:definitions].delete(defname.downcase)
             if definition
                 m.reply "Definition \"?#{defname}\" was deleted."
             else
@@ -83,7 +83,7 @@ class CommandSystem
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
         @@command_store.transaction do
             channel_defs = @@command_store[m.channel.to_s]
-            channel_defs["commands"][cmdname.downcase] = reply
+            channel_defs[:commands][cmdname.downcase] = reply
             m.reply "Added command \"!#{cmdname}\": #{reply}"
         end
     end
@@ -100,7 +100,7 @@ class CommandSystem
     def deleteCommand m, cmdname, reply
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
         @@command_store.transaction do
-            command = @@command_store[m.channel.to_s]["commands"].delete(cmdname.downcase)
+            command = @@command_store[m.channel.to_s][:commands].delete(cmdname.downcase)
             if command
                 m.reply "Command \"!#{cmdname}\" was deleted."
             else
@@ -117,9 +117,9 @@ class CommandSystem
     # Since all definitions are saved in all lower case, this is not case-sensitive.
     match /^\?(\w+)$/, use_prefix: false, method: :getDefinition
     def getDefinition m, defname
-        if defname.eql?("definitions")
+        if defname.eql?(:definitions)
             @@command_store.transaction do
-                reply = @@command_store[m.channel.to_s]["definitions"].keys.join(", ")
+                reply = @@command_store[m.channel.to_s][:definitions].keys.join(", ")
                 unless reply.eql?("")
                     m.reply "All available definitions for this channel: #{reply}."
                 else
@@ -128,7 +128,7 @@ class CommandSystem
             end
         else
             @@command_store.transaction do
-                definition = @@command_store[m.channel.to_s]["definitions"][defname.downcase]
+                definition = @@command_store[m.channel.to_s][:definitions][defname.downcase]
                 if definition
                     m.reply definition
                 else
@@ -145,9 +145,9 @@ class CommandSystem
     # Since all commands are saved in all lower case, this is not case-sensitive.
     match /^\!(\w+)$/, use_prefix: false, method: :getCommand
     def getCommand m, cmdname
-        if cmdname.eql?("commands")
+        if cmdname.eql?(:commands)
             @@command_store.transaction do
-                reply = @@command_store[m.channel.to_s]["commands"].keys.join(", ")
+                reply = @@command_store[m.channel.to_s][:commands].keys.join(", ")
                 unless reply.eql?("")
                     m.reply "All available custom commands for this channel: #{reply}."
                 else
@@ -156,7 +156,7 @@ class CommandSystem
             end
         else
             @@command_store.transaction do
-                command = @@command_store[m.channel.to_s]["commands"][cmdname.downcase]
+                command = @@command_store[m.channel.to_s][:commands][cmdname.downcase]
                 if command
                     m.reply command
                 end
