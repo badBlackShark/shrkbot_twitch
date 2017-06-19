@@ -22,6 +22,7 @@ class ChannelSystem
     def joinChannel m, channelName
         return unless m.user.nick.eql?($botowner)
         channelName.prepend('#')
+        channelName.downcase!
 
         # Making sure the bot isn't already in the channel.
         if $channels.include?(channelName)
@@ -61,6 +62,7 @@ class ChannelSystem
             return unless m.user.nick.eql?($botowner)
             m.reply "Leaving channel twitch.tv/#{channelName}"
             channelName.prepend('#')
+            channelName.downcase!
         else
             channelName = m.channel
         end

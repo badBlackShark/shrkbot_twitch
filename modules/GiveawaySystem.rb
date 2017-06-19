@@ -87,7 +87,7 @@ class GiveawaySystem
             winner = @@giveaways[m.channel.to_s]["possibleWinners"].sample
             m.reply "#{winner} has won the giveaway!"
             @@giveaways[m.channel.to_s]["possibleWinners"].delete(winner)
-            @@giveaways[m.channel.to_s]["winners"].push(m.user.nick)
+            @@giveaways[m.channel.to_s]["winners"].push(winner)
             # Making sure it can't draw more winners than there are people in the giveaway.
             break if @@giveaways[m.channel.to_s]["possibleWinners"].length < numberOfWinners.to_i
         end

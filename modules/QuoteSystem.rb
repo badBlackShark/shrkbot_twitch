@@ -23,7 +23,6 @@ class QuoteSystem
         end
     end
 
-
     @@quote_store = YAML::Store.new('quotes.store')
     QuoteSystem.createStores
     # Used so no quote is randomly returned twice in a row.

@@ -5,6 +5,8 @@ require 'yaml/store'
 # WORK IN PROGRESS
 # TODO: Include challonge integration (requires API v2 for what I want to do).
 
+# TODO: Create functions to edit all the other variables
+
 class TournamentSystem
     include Cinch::Plugin
     set :prefix, /^!/
@@ -21,6 +23,7 @@ class TournamentSystem
     @@tournament_store = YAML::Store.new "tournament.store"
     TournamentSystem.createStores
 
+# General tournament stuff
 
     # Usage: !tournament start <name>
     #
@@ -31,9 +34,9 @@ class TournamentSystem
         return unless m.user.nick.eql?($botowner)||m.user.nick.eql?(m.channel.name.sub('#',''))
         @@tournament_store.transaction do
             @@tournament_store[m.channel.to_s][tournamentName]||={
-                bracket:  nil,
-                schedule: nil,
-                rules:    nil,
+                "bracket"  => nil,
+                "schedule" => nil,
+                "rules"    => nil,
                 upnext:   nil,
                 admin:    m.user.nick,
                 staff:    [m.user.nick]
@@ -64,22 +67,65 @@ class TournamentSystem
 
             return unless checkPermissions(m, tournamentName, :admin)
 
-            channel.prepend('#')
-            unless $channels.include?(channel.downcase)
+            if channel
+                channel.prepend('#')
+                channel.downcase!
+            else
+                channel = m.channel.to_s
+            end
+
+            unless $channels.include?(channel)
                 m.reply "I'm not connected to channel #{channel[1..-1]}."
                 return
             end
 
-            if @@tournament_store[tournamentName][:runsIn].include?(channel.downcase)
+            if @@tournament_store[tournamentName][:runsIn].include?(channel)
                 m.reply "Tournament #{tournamentName} is already running in channel #{channel[1..-1]}."
                 return
             end
 
-            @@tournament_store[channel.downcase][tournamentName]=@@tournament_store[m.channel.to_s][tournamentName]
+            @@tournament_store[channel][tournamentName]=@@tournament_store[m.channel.to_s][tournamentName]
             @@tournament_store[tournamentName][:runsIn].push(channel.downcase)
         end
 
         m.reply "All commands for tournament #{tournamentName} will now also be available in channel #{channel[1..-1]}."
+    end
+
+
+    match /tournament (\S+) exclude ?(.+)?/, method: :excludeInChannel
+    def excludeInChannel m, tournamentName, channel
+        @@tournament_store.transaction do
+            unless validateTournamentName(m, tournamentName)
+                allTournaments = @@tournament_store[m.channel.to_s].keys.join(", ")
+                m.reply "This tournament doesn't exist or isn't available in this channel. Remember that tournament names are case sensitive!"
+                if allTournaments
+                    m.reply "All available tournaments for this channel: #{allTournaments}."
+                else
+                    m.reply "There are no active tournaments in this channel."
+                end
+
+                return
+            end
+
+            return unless checkPermissions(m, tournamentName, :admin)
+
+            if channel
+                channel.prepend('#')
+                channel.downcase!
+            else
+                channel = m.channel.to_s
+            end
+
+            if @@tournament_store[tournamentName][:runsIn].include?(channel)
+                @@tournament_store[channel].delete(tournamentName)
+                @@tournament_store[tournamentName][:runsIn].delete(channel)
+            else
+                m.reply "Tournament #{tournamentName} isn't running in channel #{channel[1..-1]}."
+                return
+            end
+        end
+
+        m.reply "The commands for tournament #{tournamentName} are no longer available in channel #{channel[1..-1]}."
     end
 
 
@@ -106,14 +152,18 @@ class TournamentSystem
             m.reply "Tournament #{tournamentName} was succesfully deleted."
         end
     end
+#end
 
 
-    # Usage: !bracket <name>
+
+# Getter / Setter
+
+    # Usage: !<variable> <name>
     #
-    # Returns the bracket for the tournament <name>. If <name> is not given, and there's only one
-    # active tournament in the channel the command was called in, then the bracket for that tournament will be returned.
-    match /bracket ?(\w+)?$/, method: :getBracket
-    def getBracket m, tournamentName
+    # Returns the <variable> for the tournament <name>. If <name> is not given, and there's only one
+    # active tournament in the channel the command was called in, then the <variable> for that tournament will be returned.
+    match /(rules|schedule|bracket) ?(\w+)?$/, method: :getTournamentProperty
+    def getTournamentProperty m, variable, tournamentName
         @@tournament_store.transaction do
             if tournamentName
                 unless validateTournamentName(m, tournamentName)
@@ -128,34 +178,33 @@ class TournamentSystem
                     return
                 end
                 return unless @@tournament_store[tournamentName][:runsIn].include?(m.channel.to_s)
-                bracket = @@tournament_store[m.channel.to_s][tournamentName][:bracket]
+                reply = @@tournament_store[m.channel.to_s][tournamentName][variable]
             elsif @@tournament_store[m.channel.to_s].keys.length==1
                 tournamentName = @@tournament_store[m.channel.to_s].keys[0]
-                bracket = @@tournament_store[m.channel.to_s][tournamentName][:bracket]
+                reply = @@tournament_store[m.channel.to_s][tournamentName][variable]
             else
                 return if @@tournament_store[m.channel.to_s].keys.length==0
                 m.reply "Please specify a tournament. All available tournaments for this channel: #{@@tournament_store[m.channel.to_s].keys.join(", ")}."
                 return
             end
 
-            if bracket
-                m.reply "Bracket for #{tournamentName}: #{bracket}"
+            if reply
+                m.reply "The #{variable} for #{tournamentName}: #{reply}"
             else
-                m.reply "There's no bracket set for this tournament."
+                m.reply "There's no #{variable} for this tournament."
             end
         end
     end
 
 
-    # Usage: !bracket set <name> "<reply>"
+    # Usage: !<variable> <name> set <reply>
     #
-    # Sets the bracket for the tournament <name> to <reply>. If <name> is not given, and there's only one
-    # active tournament in the channel the command was called in, then the bracket for that tournament will
-    # be set to <reply>. The quotation marks around <reply> are to distinguish the reply from the tournament name,
-    # if tournament name is not given and the reply contains a space. The quotation marks won't be saved as part of the reply.
+    # Sets the rules for the tournament <name> to <reply>. If <name> is not given, and there's only one
+    # active tournament in the channel the command was called in, then the <variable> for that tournament will
+    # be set to <reply>.
     # Can only be called by tournament staff.
-    match /bracket set ?(\S+)? "(.+)"$/, method: :setBracket
-    def setBracket m, tournamentName=nil, bracket
+    match /(rules|schedule|bracket) ?(\S+)? set (.+)$/, method: :setTournamentProperty
+    def setTournamentProperty m, variable, tournamentName, reply
         @@tournament_store.transaction do
             if tournamentName
                 unless validateTournamentName(m, tournamentName)
@@ -170,26 +219,33 @@ class TournamentSystem
                     return
                 end
                 return unless checkPermissions(m, tournamentName, :staff)
-                @@tournament_store[m.channel.to_s][tournamentName][:bracket] = bracket
+                @@tournament_store[m.channel.to_s][tournamentName][variable] = reply
             elsif @@tournament_store[m.channel.to_s].keys.length==1
                 tournamentName = @@tournament_store[m.channel.to_s].keys[0]
                 return unless checkPermissions(m, tournamentName, :staff)
-                @@tournament_store[m.channel.to_s][tournamentName][:bracket] = bracket
+                @@tournament_store[m.channel.to_s][tournamentName][variable] = reply
             else
                 return if @@tournament_store[m.channel.to_s].keys.length==0
-                m.reply "Please specify a tournament with \"!bracket set <name> <bracket>\".
+                m.reply "Please specify a tournament with \"!#{variable} <tournament> set <reply>\".
                 All available tournaments for this channel: #{@@tournament_store[m.channel.to_s].keys.join(", ")}."
                 return
             end
-            m.reply "Set bracket for tournament #{tournamentName} to \"#{bracket}\"."
+            m.reply "Set #{variable} for tournament #{tournamentName} to \"#{reply}\"."
         end
     end
 
 
+    match /upnext ?(\w)?$/, method: :getUpnext
+    def getUpnext m, tournamentName
+
+    end
+
+
+#end
 
     private
 
-    # These must always be called within a transaction block!
+    # These must always be called within a transaction block of @@tournament_store!
 
     def validateTournamentName m, tournamentName
         @@tournament_store[m.channel.to_s].keys.include?(tournamentName) ? true : false
