@@ -34,7 +34,7 @@ class QuoteSystem
     # Adds a quote to the database.
     # Only usable by mods.
     match /quote add (.+)/, method: :addQuote
-    def addQuote m, action, arg
+    def addQuote m, arg
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
         @@quote_store.transaction do
             channel_quotes = @@quote_store[m.channel.to_s]
@@ -50,8 +50,8 @@ class QuoteSystem
     #
     # Deletes a quote from the database.
     # Only usable by mods.
-    match /quote (?:del|delete) (.+)/, method: :addQuote
-    def addQuote m, action, arg
+    match /quote (?:del|delete) (.+)/, method: :deleteQuote
+    def deleteQuote m, arg
         return unless $moderators[m.channel.to_s].include?(m.user.nick)
         @@quote_store.transaction do
             quote = @@quote_store[m.channel.to_s][:quotes].delete(arg.to_i)

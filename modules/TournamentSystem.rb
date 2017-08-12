@@ -5,7 +5,8 @@ require 'yaml/store'
 # WORK IN PROGRESS
 # TODO: Include challonge integration (requires API v2 for what I want to do).
 
-# TODO: Create functions to edit all the other variables
+# TODO: Fix that staff members can be deleted multiple times!
+
 
 class TournamentSystem
     include Cinch::Plugin
@@ -37,7 +38,7 @@ class TournamentSystem
                 "bracket"  => nil,
                 "schedule" => nil,
                 "rules"    => nil,
-                upnext:   nil,
+                upnext:   [],
                 admin:    m.user.nick,
                 staff:    [m.user.nick]
             }
@@ -54,14 +55,7 @@ class TournamentSystem
     def includeInChannel m, tournamentName, channel
         @@tournament_store.transaction do
             unless validateTournamentName(m, tournamentName)
-                allTournaments = @@tournament_store[m.channel.to_s].keys.join(", ")
-                m.reply "This tournament doesn't exist or isn't available in this channel. Remember that tournament names are case sensitive!"
-                if allTournaments
-                    m.reply "All available tournaments for this channel: #{allTournaments}."
-                else
-                    m.reply "There are no active tournaments in this channel."
-                end
-
+                invalidTournament(m)
                 return
             end
 
@@ -96,14 +90,7 @@ class TournamentSystem
     def excludeInChannel m, tournamentName, channel
         @@tournament_store.transaction do
             unless validateTournamentName(m, tournamentName)
-                allTournaments = @@tournament_store[m.channel.to_s].keys.join(", ")
-                m.reply "This tournament doesn't exist or isn't available in this channel. Remember that tournament names are case sensitive!"
-                if allTournaments
-                    m.reply "All available tournaments for this channel: #{allTournaments}."
-                else
-                    m.reply "There are no active tournaments in this channel."
-                end
-
+                invalidTournament(m)
                 return
             end
 
@@ -138,7 +125,7 @@ class TournamentSystem
         @@tournament_store.transaction do
             return unless checkPermissions(m, tournamentName, :admin)
             unless validateTournamentName(m, tournamentName)
-                m.reply "Tournament #{tournamentName} doesn't exist."
+                invalidTournament(m)
                 return
             end
 
@@ -167,14 +154,8 @@ class TournamentSystem
         @@tournament_store.transaction do
             if tournamentName
                 unless validateTournamentName(m, tournamentName)
-                    allTournaments = @@tournament_store[m.channel.to_s].keys.join(", ")
-                    m.reply "This tournament doesn't exist or isn't available in this channel. Remember that tournament names are case sensitive!"
-                    unless allTournaments.eql?("")
-                        m.reply "All available tournaments for this channel: #{allTournaments}."
-                    else
-                        m.reply "There are no active tournaments in this channel."
-                    end
-
+                    m.reply "got here somehow"
+                    invalidTournament(m)
                     return
                 end
                 return unless @@tournament_store[tournamentName][:runsIn].include?(m.channel.to_s)
@@ -199,7 +180,7 @@ class TournamentSystem
 
     # Usage: !<variable> <name> set <reply>
     #
-    # Sets the rules for the tournament <name> to <reply>. If <name> is not given, and there's only one
+    # Sets the <variable> for the tournament <name> to <reply>. If <name> is not given, and there's only one
     # active tournament in the channel the command was called in, then the <variable> for that tournament will
     # be set to <reply>.
     # Can only be called by tournament staff.
@@ -208,14 +189,7 @@ class TournamentSystem
         @@tournament_store.transaction do
             if tournamentName
                 unless validateTournamentName(m, tournamentName)
-                    allTournaments = @@tournament_store[m.channel.to_s].keys.join(", ")
-                    m.reply "This tournament doesn't exist or isn't available in this channel. Remember that tournament names are case sensitive!"
-                    if allTournaments
-                        m.reply "All available tournaments for this channel: #{allTournaments}."
-                    else
-                        m.reply "There are no active tournaments in this channel."
-                    end
-
+                    invalidTournament(m)
                     return
                 end
                 return unless checkPermissions(m, tournamentName, :staff)
@@ -235,9 +209,122 @@ class TournamentSystem
     end
 
 
-    match /upnext ?(\w)?$/, method: :getUpnext
+    # Usage: !upnext <name>
+    #
+    # Returns the upcoming match for the tournament with name <name>. If <name> is not given, and there's only
+    # one active tournament in the channel, then the upcoming match for that tournament will be returned.
+    match /upnext ?(\w+)?$/, method: :getUpnext
     def getUpnext m, tournamentName
+        @@tournament_store.transaction do
+            if tournamentName
+                unless validateTournamentName(m, tournamentName)
+                    m.reply "Tournament name; #{tournamentName}"
+                    invalidTournament(m)
+                    return
+                end
+                return unless @@tournament_store[tournamentName][:runsIn].include?(m.channel.to_s)
+                reply = @@tournament_store[m.channel.to_s][tournamentName][:upnext].join(" vs ")
+            elsif @@tournament_store[m.channel.to_s].keys.length==1
+                tournamentName = @@tournament_store[m.channel.to_s].keys[0]
+                reply = @@tournament_store[m.channel.to_s][tournamentName][:upnext].join(" vs ")
+            else
+                return if @@tournament_store[m.channel.to_s].keys.length==0
+                m.reply "Please specify a tournament. All available tournaments for this channel: #{@@tournament_store[m.channel.to_s].keys.join(", ")}."
+                return
+            end
 
+            if reply
+                m.reply "The next match in #{tournamentName} will be #{reply}."
+            else
+                m.reply "There's no next match planned at the moment."
+            end
+        end
+    end
+
+
+    # Usage: !upnext <name> set <opponent1>, <opponent2>, <opponent3>, ...
+    #
+    # Sets the opponents for the upcoming match for the tournament with the name <name>. If <name> is not given, and
+    # there's only one active tournament in the channel, the opponents for the upcoming match of that tournament
+    # will be set.
+    # You can set an unlimited amount of opponents, separated by ", ".
+    # Can only be called by tournament staff.
+    match /upnext ?(\S+)? set (.+)$/, method: :setUpnext
+    def setUpnext m, tournamentName, reply
+        @@tournament_store.transaction do
+            if tournamentName
+                unless validateTournamentName(m, tournamentName)
+                    invalidTournament(m)
+                    return
+                end
+                return unless checkPermissions(m, tournamentName, :staff)
+                @@tournament_store[m.channel.to_s][tournamentName][:upnext] = reply.split(", ")
+            elsif @@tournament_store[m.channel.to_s].keys.length==1
+                tournamentName = @@tournament_store[m.channel.to_s].keys[0]
+                return unless checkPermissions(m, tournamentName, :staff)
+                @@tournament_store[m.channel.to_s][tournamentName][:upnext] = reply.split(", ")
+            else
+                return if @@tournament_store[m.channel.to_s].keys.length==0
+                m.reply "Please specify a tournament with \"!upnext <tournament> set <reply>\".
+                All available tournaments for this channel: #{@@tournament_store[m.channel.to_s].keys.join(", ")}."
+                return
+            end
+            m.reply "Set the opponents for the next match in #{tournamentName} to: \"#{reply}\"."
+        end
+    end
+
+
+    match /staff ?(\S+)? add (.+)$/, method: :addStaff
+    def addStaff m, tournamentName, staffName
+        @@tournament_store.transaction do
+            if tournamentName
+                unless validateTournamentName(m, tournamentName)
+                    invalidTournament(m)
+                    return
+                end
+                return unless checkPermissions(m, tournamentName, :admin)
+                @@tournament_store[m.channel.to_s][tournamentName][:staff].push(staffName.downcase)
+            elsif @@tournament_store[m.channel.to_s].keys.length==1
+                tournamentName = @@tournament_store[m.channel.to_s].keys[0]
+                return unless checkPermissions(m, tournamentName, :admin)
+                @@tournament_store[m.channel.to_s][tournamentName][:staff].push(staffName.downcase)
+            else
+                return if @@tournament_store[m.channel.to_s].keys.length==0
+                m.reply "Please specify a tournament with \"!staff <tournament> add <name>\".
+                All available tournaments for this channel: #{@@tournament_store[m.channel.to_s].keys.join(", ")}."
+                return
+            end
+            m.reply "Added \"#{staffName}\" to the list of staff members."
+        end
+    end
+
+
+    match /staff ?(\S+)? remove (.+)$/, method: :removeStaff
+    def removeStaff m, tournamentName, staffName
+        @@tournament_store.transaction do
+            if tournamentName
+                unless validateTournamentName(m, tournamentName)
+                    invalidTournament(m)
+                    return
+                end
+                return unless checkPermissions(m, tournamentName, :admin)
+                staffMember = @@tournament_store[m.channel.to_s][tournamentName][:staff].delete(staffName.downcase)
+            elsif @@tournament_store[m.channel.to_s].keys.length==1
+                staffMember = tournamentName = @@tournament_store[m.channel.to_s].keys[0]
+                return unless checkPermissions(m, tournamentName, :admin)
+                @@tournament_store[m.channel.to_s][tournamentName][:staff].delete(staffName.downcase)
+            else
+                return if @@tournament_store[m.channel.to_s].keys.length==0
+                m.reply "Please specify a tournament with \"!staff <tournament> add <name>\".
+                All available tournaments for this channel: #{@@tournament_store[m.channel.to_s].keys.join(", ")}."
+                return
+            end
+            if staffMember
+                m.reply "Deleted #{staffName} from the list of staff members."
+            else
+                m.reply "There is no staff member called \"#{staffName}\"."
+            end
+        end
     end
 
 
@@ -246,6 +333,16 @@ class TournamentSystem
     private
 
     # These must always be called within a transaction block of @@tournament_store!
+
+    def invalidTournament m
+        allTournaments = @@tournament_store[m.channel.to_s].keys.join(", ")
+        m.reply "This tournament doesn't exist or isn't available in this channel. Remember that tournament names are case sensitive!"
+        unless allTournaments.eql?("")
+            m.reply "All available tournaments for this channel: #{allTournaments}."
+        else
+            m.reply "There are no active tournaments in this channel."
+        end
+    end
 
     def validateTournamentName m, tournamentName
         @@tournament_store[m.channel.to_s].keys.include?(tournamentName) ? true : false

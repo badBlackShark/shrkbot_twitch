@@ -49,6 +49,7 @@ class ChannelSystem
         TournamentSystem.createStores
     end
 
+
     # !leave <channel>
     #
     # Leaves the given channel. If 'channel' is not given, it will leave
@@ -90,5 +91,17 @@ class ChannelSystem
         $channels.keys.each do |channel|
             Channel(channel).send("/mods")
         end
+    end
+
+
+    match /channels/, method: :getChannels
+    def getChannels m
+        reply = "I am connected to the channels: "
+        channels = []
+        $channels.keys.each do |c|
+            channels.push(c.strip)
+        end
+        reply+= channels.join(', ').gsub('#', '')
+        m.reply reply
     end
 end
