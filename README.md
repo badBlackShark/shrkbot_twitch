@@ -7,9 +7,9 @@ A bot for the twitch channel twitch.tv/trueblackshark, created using the [cinch]
 Requires a YAML file called '.login', containing the name of your bot as well as your name on twitch, and your bot's oauth token. Your final file should look something like this:
 
 >---
->"botname": "shrkbot"
->"botowner": "trueblackshark"
->"oauth": "oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+>"botname": "shrkbot"  
+>"botowner": "trueblackshark"  
+>"oauth": "oauth:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  
 
 
 
