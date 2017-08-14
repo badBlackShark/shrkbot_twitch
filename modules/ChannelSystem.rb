@@ -101,7 +101,7 @@ class ChannelSystem
         $channels.keys.each do |c|
             channels.push(c.strip)
         end
-        reply+= channels.join(', ').gsub('#', '')
+        reply << "#{channels.join(', ').gsub('#', '')}."
         m.reply reply
     end
 end
