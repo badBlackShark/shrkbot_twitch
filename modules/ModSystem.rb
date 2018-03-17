@@ -8,7 +8,7 @@ class ModSystem
 
     # Reacts to twitch's response to '/mods', and sets the internal modlist for
     # the channel to the modlist twitch returns.
-    match /The moderators of this room are: (.*)/, react_on: :notice, method: :updateModlist, use_prefix: false
+    match /The moderators of this channel are: (.*)/, react_on: :notice, method: :updateModlist, use_prefix: false
     def updateModlist m, modlist
         $moderators[m.channel.to_s] = modlist.split(", ")
     end
