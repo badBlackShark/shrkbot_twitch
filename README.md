@@ -1,3 +1,5 @@
+This bot is deprecated, and will soon be rewritten.
+
 # shrkbot
 A bot for the twitch channel twitch.tv/trueblackshark, created using the [cinch](https://github.com/cinchrb/cinch) IRC bot framework.
 
